@@ -1,6 +1,47 @@
 let demographicChartInstance
 let animeTimeChartInstance
 
+// ============ LOADING HELPERS ============
+const showLoading = (elementId, height = '20vh') => {
+    const element = document.getElementById(elementId)
+    if (element) {
+        element.innerHTML = `
+            <div class="flex flex-col justify-center items-center" style="height: ${height}">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                <p class="mt-3 text-gray-500 text-sm">Loading...</p>
+            </div>
+        `
+    }
+}
+
+const showError = (elementId, message = 'Failed to load data', height = '20vh') => {
+    const element = document.getElementById(elementId)
+    if (element) {
+        element.innerHTML = `
+            <div class="flex flex-col justify-center items-center" style="height: ${height}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="text-red-500" viewBox="0 0 16 16">
+                    <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                </svg>
+                <p class="mt-3 text-gray-500 text-sm">${message}</p>
+            </div>
+        `
+    }
+}
+
+const showEmptyState = (elementId, message = 'No data available', height = '20vh') => {
+    const element = document.getElementById(elementId)
+    if (element) {
+        element.innerHTML = `
+            <div class="flex flex-col justify-center items-center" style="height: ${height}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="text-gray-400" viewBox="0 0 16 16">
+                    <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zM11 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zm.5 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1h-4zm2 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2zm0 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-2z"/>
+                </svg>
+                <p class="mt-3 text-gray-500 text-sm">${message}</p>
+            </div>
+        `
+    }
+}
+
 // fungsi input username
 const inputUsername = (ttlMs) => {
     Swal.fire({
@@ -39,16 +80,30 @@ const inputUsername = (ttlMs) => {
     })
     .then(async (result) => {
         if (result.isConfirmed) {
-            animelist = result.value
-            setSessionStorage('animelist', animelist, ttlMs) // simpan di session storage selama 60 menit
+            // Show loading states
+            showLoading('animewatched_', '50vh')
+            showLoading('animerecommend_', '65vh')
+            showLoading('genrewatched_')
+            showLoading('studiowatched_')
+            showLoading('procedurwatched_')
+            showLoading('demographicchart_', '60vh')
+            showLoading('animetimechart_', '30vh')
 
-            const analysis = await startAnalysis(animelist.data)
-            await chartManagement(animelist, analysis)
-
-            initialFilter(analysis)
-            
-            const recomendAnime = await recommendationAnime(animelist.data)
-            initialRecommendation(recomendAnime)
+            try {
+                animelist = result.value
+                setSessionStorage('animelist', animelist, ttlMs) // simpan di session storage selama 60 menit
+    
+                const analysis = await startAnalysis(animelist.data)
+                await chartManagement(animelist, analysis)
+    
+                initialFilter(analysis)
+                
+                const recomendAnime = await recommendationAnime(animelist.data)
+                initialRecommendation(recomendAnime)
+            } catch (error) {
+                showError('animewatched_', 'Failed to load anime list', '50vh')
+                showError('animerecommend_', 'Failed to load recommendations', '65vh')
+            }
         }
     });
 }
@@ -140,6 +195,8 @@ const startAnalysis = async (data) => {
 }
 
 const recommendationAnime = async (data) => {
+    showLoading('animerecommend_', '65vh')
+
     try {
         const response = await fetch(`/recommendation`, {
             method: 'POST',
@@ -151,6 +208,7 @@ const recommendationAnime = async (data) => {
     
         return response.json();
     } catch (error) {
+        showError('animerecommend_', 'Failed to load recommendations', '65vh')
         Swal.fire({
             icon: 'error',
             title: 'Sorry Something Went Wrong',
@@ -161,6 +219,11 @@ const recommendationAnime = async (data) => {
 
 const initialRecommendation = (data) =>{
     const animerecommend_ = document.getElementById('animerecommend_')
+
+    if (!data || data.length === 0) {
+        showEmptyState('animerecommend_', 'No recommendations available', '65vh')
+        return
+    }
 
     let html = ``
     data.map((item, i) => {
@@ -190,27 +253,40 @@ const initialRecommendation = (data) =>{
 
 // fungsi untuk mengelola chart dan data
 const chartManagement = async (response, analysis) => {
-    // set anime list, watch, and unwatch
-    const watched_ = animeWatched(response)
-    const {
-        genre, 
-        studio, 
-        producer, 
-        demographic, 
-        theme, 
-        anime_time
-    } = analysis
+    showLoading('animewatched_', '50vh')
+    showLoading('genrewatched_')
+    showLoading('studiowatched_')
+    showLoading('procedurwatched_')
+    showLoading('demographicchart_', '60vh')
+    showLoading('animetimechart_', '30vh')
 
-    const topGenre = [...genre].sort((a, b) => b[1] - a[1]).slice(0, 5)
-    const topStudio = [...studio].sort((a, b) => b[1] - a[1]).slice(0, 5)
-    const topProducer = [...producer].sort((a, b) => b[1] - a[1]).slice(0, 5)
-
-    genreWatched(topGenre)
-    studioWatched(topStudio)
-    producerWatched(topProducer)
-
-    demographicChart(demographic)
-    animeTimeChart(anime_time)
+    try {
+        // set anime list, watch, and unwatch
+        const watched_ = animeWatched(response)
+        const {
+            genre, 
+            studio, 
+            producer, 
+            demographic, 
+            theme, 
+            anime_time
+        } = analysis
+    
+        const topGenre = [...genre].sort((a, b) => b[1] - a[1]).slice(0, 5)
+        const topStudio = [...studio].sort((a, b) => b[1] - a[1]).slice(0, 5)
+        const topProducer = [...producer].sort((a, b) => b[1] - a[1]).slice(0, 5)
+    
+        genreWatched(topGenre)
+        studioWatched(topStudio)
+        producerWatched(topProducer)
+    
+        demographicChart(demographic)
+        animeTimeChart(anime_time)
+    } catch (error) {
+        showError('genrewatched_', 'Failed to load data')
+        showError('studiowatched_', 'Failed to load data')
+        showError('procedurwatched_', 'Failed to load data')
+    }
 }
 
 // fungsi untuk menampilkan anime watched dan unwatched
@@ -218,6 +294,14 @@ const animeWatched = (response) => {
     const animewatched_ = document.getElementById('animewatched_')
     const stat_watched = document.getElementById('stat_watched')
     const stat_unwatched = document.getElementById('stat_unwatched')
+
+    if (!response || !response.data || response.data.length === 0) {
+        showEmptyState('animewatched_', 'No anime in your list', '50vh')
+        stat_watched.innerText = '0'
+        stat_unwatched.innerText = '0'
+        return
+    }
+
     let watched_count = 0
     let unwatched_count = 0
 
@@ -262,8 +346,13 @@ const animeWatched = (response) => {
 // fungsi untuk menampilkan top genre, studio, dan producer
 const genreWatched = (data) => {
     const genrewatched_ = document.getElementById('genrewatched_')
-    let html = ``
 
+    if (!data || data.length === 0) {
+        showEmptyState('genrewatched_', 'No genre data')
+        return
+    }
+
+    let html = ``
     data.map((item, i) => {
         html += `
             <div class="flex justify-between items-center mb-1 px-3 rounded-md cursor-pointer transition duration-300 ease-in-out hover:bg-gray-200 hover:scale-105 group">
@@ -278,8 +367,13 @@ const genreWatched = (data) => {
 // fungsi untuk menampilkan top studio
 const studioWatched = (data) => {
     const studiowatched_ = document.getElementById('studiowatched_')
-    let html = ``
+    
+    if (!data || data.length === 0) {
+        showEmptyState('studiowatched_', 'No studio data')
+        return
+    }
 
+    let html = ``
     data.map((item, i) => {
         html += `
             <div class="flex justify-between items-center mb-1 px-3 rounded-md cursor-pointer transition duration-300 ease-in-out hover:bg-gray-200 hover:scale-105 group">
@@ -294,8 +388,13 @@ const studioWatched = (data) => {
 // fungsi untuk menampilkan top producer
 const producerWatched = (data) => {
     const procedurwatched_ = document.getElementById('procedurwatched_')
-    let html = ``
+    
+    if (!data || data.length === 0) {
+        showEmptyState('procedurwatched_', 'No producer data')
+        return
+    }
 
+    let html = ``
     data.map((item, i) => {
         html += `
             <div class="flex justify-between items-center mb-1 px-3 rounded-md cursor-pointer transition duration-300 ease-in-out hover:bg-gray-200 hover:scale-105 group">
@@ -310,6 +409,11 @@ const producerWatched = (data) => {
 // fungsi untuk menampilkan chart demographic dan anime time
 const demographicChart = (data) => {
     const ctx = document.getElementById('demographicchart_')
+
+    if (!data || data.length === 0) {
+        showEmptyState('demographicchart_', 'No demographic data', '60vh')
+        return
+    }
 
     if (demographicChartInstance && typeof demographicChartInstance.destroy === 'function') {
         demographicChartInstance.destroy()
@@ -343,6 +447,11 @@ const demographicChart = (data) => {
 // fungsi untuk menampilkan chart anime time
 const animeTimeChart = (data) => {
     const ctx = document.getElementById('animetimechart_')
+
+    if (!data || data.length === 0) {
+        showEmptyState('animetimechart_', 'No anime time data', '30vh')
+        return
+    }
 
     if (animeTimeChartInstance && typeof animeTimeChartInstance.destroy === 'function') {
         animeTimeChartInstance.destroy()
@@ -503,6 +612,16 @@ const applyFilters = async () => {
     const checkedStudios = [...studioCheckboxes]
         .filter(cb => cb.checked)
         .map(cb => cb.value.trim());
+
+    // Show loading states
+    showLoading('animewatched_', '50vh')
+    showLoading('animerecommend_', '65vh')
+    showLoading('genrewatched_')
+    showLoading('studiowatched_')
+    showLoading('procedurwatched_')
+    showLoading('demographicchart_', '60vh')
+    showLoading('animetimechart_', '30vh')
+
     try {        
         const response = await fetch('/filter', {
             method: 'POST',
@@ -535,7 +654,11 @@ const applyFilters = async () => {
         initialRecommendation(recomendAnime)
 
     } catch (error) {
-        console.log(error);
+        showError('animewatched_', 'Filter failed', '50vh')
+        showError('animerecommend_', 'Filter failed', '65vh')
+        showError('genrewatched_')
+        showError('studiowatched_')
+        showError('procedurwatched_')
         Swal.fire({
             icon: 'error',
             title: 'Sorry Something Went Wrong',
@@ -552,18 +675,32 @@ const filterWatchStatus = async (status) => {
     const parsedList = JSON.parse(animelist).value;
     const animeData = parsedList.data;
 
-    const filteredAnime = animeData.filter(({ Progress }) => {
-        const [, total] = Progress.split('/');
-        return (
-            (status === 'unwatched' && total) ||
-            (status === 'watched' && !total)
-        );
-    }); 
+    // Show loading states
+    showLoading('animewatched_', '50vh')
+    showLoading('animerecommend_', '65vh')
+    showLoading('genrewatched_')
+    showLoading('studiowatched_')
+    showLoading('procedurwatched_')
+    showLoading('demographicchart_', '60vh')
+    showLoading('animetimechart_', '30vh')
 
-    const analysis = await startAnalysis(filteredAnime)
-    await chartManagement({ ...parsedList, data: filteredAnime }, analysis)
-    initialFilter(analysis)
-
-    const recomendAnime = await recommendationAnime(filteredAnime)
-    initialRecommendation(recomendAnime)
+    try {
+        const filteredAnime = animeData.filter(({ Progress }) => {
+            const [, total] = Progress.split('/');
+            return (
+                (status === 'unwatched' && total) ||
+                (status === 'watched' && !total)
+            );
+        }); 
+    
+        const analysis = await startAnalysis(filteredAnime)
+        await chartManagement({ ...parsedList, data: filteredAnime }, analysis)
+        initialFilter(analysis)
+    
+        const recomendAnime = await recommendationAnime(filteredAnime)
+        initialRecommendation(recomendAnime)
+    } catch (error) {
+        showError('animewatched_', 'Filter failed', '50vh')
+        showError('animerecommend_', 'Filter failed', '65vh')
+    }
 }

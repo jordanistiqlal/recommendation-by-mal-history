@@ -224,7 +224,21 @@
                 initialRecommendation(recomendAnime)
             }
 
-            init()
+            try {
+                showLoading('animewatched_', '50vh')
+                showLoading('animerecommend_', '65vh')
+                showLoading('genrewatched_')
+                showLoading('studiowatched_')
+                showLoading('procedurwatched_')
+                showLoading('demographicchart_', '60vh')
+                showLoading('animetimechart_', '30vh')
+                
+                init()
+            } catch (error) {
+                showError('animewatched_', 'Failed to load anime list', '50vh')
+                showError('animerecommend_', 'Failed to load recommendations', '65vh')
+            }
+
         }else{ // minta input username
             document.addEventListener("DOMContentLoaded", () => {
                 inputUsername(ttlMs)
