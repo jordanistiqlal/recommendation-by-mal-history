@@ -2,8 +2,6 @@ pandas==2.3.3
 numpy==2.3.3
 nltk==3.9.2
 scikit-learn==1.7.2
-rake-nltk==1.0.6
-yake==0.6.0
-sentence-transformers==5.1.2
 Flask==3.1.2
-asttokens==3.0.0
+dotenv
+beautifulsoup4==4.14.2
