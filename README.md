@@ -21,5 +21,9 @@ python main.py
 OR 
 
 py main.py
+
+OR
+
+python -m flask run --no-reload --no-debugger
 ```
 

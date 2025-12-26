@@ -12,6 +12,7 @@ from collections import OrderedDict
 from datetime import datetime
 import os
 import re
+import gc
 
 
 def scrape_data(username):
@@ -58,6 +59,8 @@ def scrape_data(username):
     driver.quit()
 
     elapsed_time = time.time() - start_time
+
+    gc.collect()
 
     return OrderedDict({
         "username": username,
